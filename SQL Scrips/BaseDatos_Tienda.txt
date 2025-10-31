@@ -1,0 +1,184 @@
+-- ===============================
+-- 🦎 TIENDA DE REPTILES: BASE DE DATOS
+-- ===============================
+
+-- PERFIL DE USUARIO (enlace con Auth)
+create table profiles (
+  id uuid references auth.users(id) primary key,
+  name text,
+  phone text,
+  address text,
+  created_at timestamp default now()
+);
+
+-- CATEGORÍAS (por ejemplo: geckos, dragones barbudos, pitones)
+create table categories (
+  id bigint generated always as identity primary key,
+  name text not null,
+  description text,
+  created_at timestamp default now()
+);
+
+--  PRODUCTOS
+create table products (
+  id bigint generated always as identity primary key,
+  name text not null,
+  description text,
+  price numeric(10,2) not null check (price >= 0),
+  stock integer not null check (stock >= 0),
+  image_url text,
+  category_id bigint references categories(id) on delete set null,
+  is_active boolean default true,
+  created_at timestamp default now()
+);
+
+--  CARRITO (uno por usuario)
+create table carts (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  created_at timestamp default now(),
+  unique(user_id)
+);
+
+--  ITEMS DENTRO DEL CARRITO
+create table cart_items (
+  id bigint generated always as identity primary key,
+  cart_id bigint references carts(id) on delete cascade,
+  product_id bigint references products(id),
+  quantity integer not null check (quantity > 0),
+  created_at timestamp default now()
+);
+
+--  PEDIDOS (cuando el usuario confirma el carrito)
+create table orders (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  total numeric(10,2) not null check (total >= 0),
+  status text default 'pendiente', -- pendiente, pagado, enviado, completado
+  created_at timestamp default now()
+);
+
+--  DETALLE DE CADA PEDIDO
+create table order_items (
+  id bigint generated always as identity primary key,
+  order_id bigint references orders(id) on delete cascade,
+  product_id bigint references products(id),
+  quantity integer not null check (quantity > 0),
+  price numeric(10,2) not null check (price >= 0),
+  created_at timestamp default now()
+);
+
+------------------------------------------------------------------------
+
+-- Activa RLS
+alter table profiles enable row level security;
+alter table carts enable row level security;
+alter table cart_items enable row level security;
+alter table orders enable row level security;
+alter table order_items enable row level security;
+alter table products enable row level security;
+
+---------------------------------------------------------------------
+
+-- ===============================
+-- PERFIL (cada usuario ve y edita solo el suyo)
+-- ===============================
+create policy "Users can view own profile"
+on profiles for select
+using (auth.uid() = id);
+
+create policy "Users can update own profile"
+on profiles for update
+using (auth.uid() = id);
+
+-- ===============================
+-- PRODUCTOS
+-- ===============================
+-- Público: solo ve productos activos
+create policy "Public can view active products"
+on products for select
+using (is_active = true);
+
+-- Admin: acceso total (leer/escribir)
+create policy "Admin full access to products"
+on products for all
+using (auth.jwt() ->> 'role' = 'admin');
+
+-- ===============================
+-- CARRITO
+-- ===============================
+create policy "Users can manage own cart"
+on carts
+for all
+using (auth.uid() = user_id);
+
+
+CREATE POLICY "Usuario puede ver su carrito" 
+  ON public.carts FOR SELECT USING (auth.uid() = user_id);
+  
+CREATE POLICY "Acceso a items de mi carrito" 
+  ON public.cart_items FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.carts 
+      WHERE carts.id = cart_items.cart_id AND carts.user_id = auth.uid()
+    )
+  );
+
+-- ===============================
+-- ITEMS DEL CARRITO
+-- ===============================
+create policy "Users manage their cart items"
+on cart_items
+for all
+using (
+  exists (
+    select 1 from carts
+    where carts.id = cart_items.cart_id
+    and carts.user_id = auth.uid()
+  )
+);
+
+-- ===============================
+-- PEDIDOS
+-- ===============================
+create policy "Users see their own orders"
+on orders
+for select
+using (auth.uid() = user_id);
+
+create policy "Users insert their own orders"
+on orders
+for insert
+with check (auth.uid() = user_id);
+
+-- ===============================
+-- ITEMS DE PEDIDOS
+-- ===============================
+create policy "Users see their own order items"
+on order_items
+for select
+using (
+  exists (
+    select 1 from orders
+    where orders.id = order_items.order_id
+    and orders.user_id = auth.uid()
+  )
+);
+
+
+----------------------------------------------------------------------------------
+
+
+
+
+insert into categories (name, description)
+values
+('Geckos Leopardo', 'Reptiles nocturnos de colores únicos'),
+('Dragones Barbudos', 'Reptiles diurnos muy sociables'),
+('Pitones Bola', 'Serpientes dóciles de fácil manejo');
+
+insert into products (name, description, price, stock, image_url, category_id)
+values
+('Gecko Leopardo High Yellow', 'Gecko de color amarillo intenso', 1200.00, 5, 'https://example.com/gecko1.jpg', 1),
+('Dragón Barbudo Juvenil', 'Dragón barbudo de 3 meses', 1800.00, 3, 'https://example.com/dragon1.jpg', 2),
+('Pitón Bola Pastel', 'Pitón bola con patrón pastel', 2500.00, 2, 'https://example.com/piton1.jpg', 3);
