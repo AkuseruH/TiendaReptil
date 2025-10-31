@@ -1,70 +1,56 @@
-# Getting Started with Create React App
+🦎 Tienda de Reptiles Exóticos (con Supabase)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Proyecto de E-commerce desarrollado con React y Supabase, enfocado en la venta de reptiles, garantizando seguridad y escalabilidad mediante el uso avanzado de Políticas de Seguridad a Nivel de Fila (RLS).
 
-## Available Scripts
 
-In the project directory, you can run:
+1. Configuración Local y Ejecución
+Sigue estos pasos para levantar la aplicación en tu entorno de desarrollo.
 
-### `npm start`
+Requisitos:
+  - Node.js (versión 18 o superior)
+  - Git
+  - Una cuenta activa en Supabase.
+Pasos:
+  - Clonar el Repositorio:
+    git clone https://docs.github.com/es/repositories/creating-and-managing-repositories/quickstart-for-repositories
+    cd tienda-de-reptiles
+  - Instalar Dependencias:
+    npm install
+  - Configurar Variables de Entorno: Añade las siguientes variables, reemplazando los corchetes con tus claves de Supabase:
+   # Variables de Entorno
+      REACT_APP_SUPABASE_URL="[TU_URL_DEL_PROYECTO_SUPABASE]"
+      REACT_APP_SUPABASE_ANON_KEY="[TU_CLAVE_ANON_PUBLIC_SUPABASE]"
+  - Iniciar la Aplicación:
+    npm start
+La aplicación se abrirá en tu navegador en http://localhost:3000.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+2. Arquitectura y Stack Tecnológico
 
-### `npm test`
+Componente                  Tecnología                Uso Principal
+Frontend(UI)                React.js                  Interfaz de usuario dinámica y gestión de estados.
+Estilos                     CSS Modules               Estilos encapsulados para evitar conflictos globales.
+Base de Datos / Backend     Supabase (PostgreSQL)     Base de datos relacional, Auth (Autenticación), y RLS.
+Routing                     React Router DOM          Navegación entre las vistas de Inicio, Catálogo, Carrito y Panel Admin.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `npm run build`
+4. Usuarios de Prueba
+Utiliza estos usuarios para validar los diferentes roles y escenarios de RLS.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Rol                 Correo Electrónico            ContraseñaUID                           
+Administrador       admin@tiendareptil.com        404abf2f-7efe-4ef8-8d40-19116492c53f
+Cliente Estándar    cliente@test.com              test12349fe9399e-ffl0-4f
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+5. Políticas de RLS Clave (Seguridad)
+La seguridad se basa en permitir acciones solo si el auth.uid() (ID del usuario logueado) coincide con el propietario del recurso, con una excepción clave para el Administrador.
 
-### `npm run eject`
+Tabla          Política (Extracto SQL)                                            Función de Seguridad
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+orders          USING ( (auth.uid() = user_id) OR (auth.uid() = '404ab-...')      Visibilidad de Pedidos: Permite a los                                                                                           clientes ver SÓLO sus pedidos, O al                                                                                             Administrador ver TODOS los pedidos.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+carts          FOR ALL USING (auth.uid() = user_id)                               Aislamiento de Carritos: Garantiza que un                                                                                       usuario solo pueda leer, actualizar o e                                                                                         liminar SU propio carrito y sus items.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+products       FOR SELECT USING (is_active = true)                                Visibilidad Pública: Permite a CUALQUIER                                                                                        usuario (autenticado o no) ver solo los                                                                                         productos que estén marcados como activos.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+products       FOR ALL USING (auth.uid() = '404abf2f-...')                        Control Admin: Da control total (CREATE,                                                                                        UPDATE, DELETE) al administrador sobre la                                                                                       tabla de productos.
